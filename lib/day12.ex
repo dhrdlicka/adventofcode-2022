@@ -17,22 +17,23 @@ defmodule AdventOfCode.Day12 do
     |> Enum.map(&String.to_charlist/1)
   end
 
-  defp consider_nodes(_, [], distances, _), do: distances
-  defp consider_nodes(node, [head | tail], distances, fun) do
+  defp consider_nodes([], _, distances, _), do: distances
+  defp consider_nodes([head | tail], node, distances, fun) do
     if fun.(node, head) and distances[node] + 1 < Map.get(distances, head, :infinity) do
-      consider_nodes(node, tail, Map.put(distances, head, distances[node] + 1), fun)
+      consider_nodes(tail, node, Map.put(distances, head, distances[node] + 1), fun)
     else
-      consider_nodes(node, tail, distances, fun)
+      consider_nodes(tail, node, distances, fun)
     end
   end
 
-  defp neighboring_nodes({x, y}), do: [{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}]
+  defp visit_node({x, y} = node, unvisited_nodes, distances, can_move?, is_end?) do
+    distances =
+      MapSet.new([{x - 1, y}, {x + 1, y}, {x, y - 1}, {x, y + 1}])
+      |> MapSet.intersection(unvisited_nodes)
+      |> MapSet.to_list
+      |> consider_nodes(node, distances, can_move?)
 
-  defp visit_node(node, unvisited_nodes, distances, can_move?, is_end?) do
-    neighbors = unvisited_nodes -- (unvisited_nodes -- neighboring_nodes(node))
-    distances = consider_nodes(node, neighbors, distances, can_move?)
-
-    unvisited_nodes = unvisited_nodes -- [node]
+    unvisited_nodes = MapSet.delete(unvisited_nodes, node)
     next_node = Enum.min_by(unvisited_nodes, &Map.get(distances, &1, :infinity))
 
     cond do
@@ -60,9 +61,11 @@ defmodule AdventOfCode.Day12 do
   end
 
   defp shortest_path(map, start, ends, can_move?) do
-    unvisited_nodes = for y <- 0..length(map) - 1, x <- 0..length(List.first(map)) - 1 do
-      {x, y}
-    end
+    unvisited_nodes =
+      for y <- 0..length(map) - 1, x <- 0..length(List.first(map)) - 1 do
+        {x, y}
+      end
+      |> MapSet.new
 
     node = find(map, start)
     visit_node(node, unvisited_nodes, %{node => 0}, can_move?, &(get(map, &1) in ends))
